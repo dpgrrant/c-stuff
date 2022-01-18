@@ -7,7 +7,6 @@
 #include <sys/types.h> 
 
 
-
 typedef struct {
 int size;
 char **items;
@@ -21,43 +20,34 @@ void free_tokens(tokenlist *tokens);
 
 
 int main(){
-char *user = getenv("USER");
-char *pwd = getenv("PWD");
-char *machine = getenv("MACHINE");
-char *path = getenv("PATH");
-char *home = getenv("HOME");
-
-
-
-
 while (1) {
-    printf("\n%d@%d : >",user,machine,pwd);
-    /* input contains the whole command
-    * tokens contains substrings from input split by spaces
-    */
+    char *user = getenv("USER");
+    char *pwd = getenv("PWD");
+    char *machine = getenv("MACHINE");
+    char *path = getenv("PATH");
+    char *home = getenv("HOME");
+    printf("\n%s@%s : %s >",user,machine,pwd);
+
+
     char *input = get_input();
     tokenlist *tokens = get_tokens(input);
 
-    if(strcmp(tokens->items[0],"echo")==0){
-        char *value=getenv(tokens->items[1]);
-        printf("%s\n",value);
-    }
-
     for (int i = 0; i < tokens->size; i++) {
-        printf("token %d: (%s)\n", i, tokens->items[i]);
+        char*temp=tokens->items[i];
+        if (temp[0] == '$') {
+            temp++;
+            tokens->items[i]=getenv(temp);
+        }
     }
 
-
-
-
-
-
-
-
+    if(strcmp(tokens->items[0],"echo")==0){
+        printf("%s\n",tokens->items[1]);
+    }
 
     free(input);
-    free_tokens(tokens);
+    // free_tokens(tokens);
 }
+
 return 0;
 }
 
