@@ -38,6 +38,15 @@ while (1) {
             temp++;
             tokens->items[i]=getenv(temp);
         }
+        if (temp[0] == '~') {
+            temp++;
+            char*new=strcat(home,temp);
+            tokens->items[i]=new;
+        }
+
+    }
+    for (int i = 0; i < tokens->size; i++) {
+        printf("token %d: (%s)\n", i, tokens->items[i]);
     }
 
     if(strcmp(tokens->items[0],"echo")==0){
@@ -45,7 +54,7 @@ while (1) {
     }
 
     free(input);
-    // free_tokens(tokens);
+    free_tokens(tokens);
 }
 
 return 0;
