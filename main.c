@@ -21,30 +21,10 @@ void free_tokens(tokenlist *tokens);
 
 int main(){
 while (1) {
-    char *user = getenv("USER");
-    char *pwd = getenv("PWD");
-    char *machine = getenv("MACHINE");
-    char *path = getenv("PATH");
-    char *home = getenv("HOME");
-    printf("\n%s@%s : %s >",user,machine,pwd);
-
-
+    printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));
     char *input = get_input();
     tokenlist *tokens = get_tokens(input);
-
-    // for (int i = 0; i < tokens->size; i++) {
-    //     char*temp=tokens->items[i];
-    //     // if (temp[0] == '$') {
-    //     //     temp++;
-    //     //     tokens->items[i]=getenv(temp);
-    //     // }
-    //     // if (temp[0] == '~') {
-    //     //     temp++;
-    //     //     char*new=strcat(home,temp);
-    //     //     tokens->items[i]=new;
-    //     // }
-
-    // }
+    
     for (int i = 0; i < tokens->size; i++) {
         printf("token %d: (%s)\n", i, tokens->items[i]);
     }
