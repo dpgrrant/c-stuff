@@ -21,18 +21,18 @@ void free_tokens(tokenlist *tokens);
 
 int main(){
 while (1) {
-    printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));
+    printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
     char *input = get_input();
-    tokenlist *tokens = get_tokens(input);
+    tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
     
-    for (int i = 0; i < tokens->size; i++) {
+    for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
         printf("token %d: (%s)\n", i, tokens->items[i]);
     }
-    if(strcmp(tokens->items[0],"echo")==0){
+    if(strcmp(tokens->items[0],"echo")==0){                                 //if echo is input print out second arguement
         printf("%s\n",tokens->items[1]);
     }
 
-    free(input);
+    free(input);                                                            //given cleanup
     free_tokens(tokens);
 }
 
@@ -49,20 +49,20 @@ tokenlist *new_tokenlist(void){
 void add_token(tokenlist *tokens, char *item){
     int i = tokens->size;
     tokens->items = (char **) realloc(tokens->items, (i + 2) * sizeof(char *));
-    if (item[0] == '~'){
+    if (item[0] == '~'){                                                //tilda expansion if first character of input string 
         char *temp = malloc(strlen(getenv("HOME")) * sizeof(char));
         strcpy(temp, getenv("HOME"));
         strcat(temp,&item[1]);
         tokens->items[i]=temp;
     }
-    else if (item[0] == '$'){
+    else if (item[0] == '$'){                                           //expansion of enviroment variables
         item++;
         char *temp = malloc(strlen(getenv(item)) * sizeof(char));
         strcpy(temp, getenv(item));
         tokens->items[i] = temp;
     }
     else{
-        tokens->items[i] = (char *) malloc(strlen(item) + 1);
+        tokens->items[i] = (char *) malloc(strlen(item) + 1);             //given add token
         tokens->items[i + 1] = NULL;
         strcpy(tokens->items[i], item);
     }
