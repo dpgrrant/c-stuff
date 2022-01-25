@@ -12,11 +12,18 @@ int size;
 char **items;
 } tokenlist;
 
+pid_t waitpid(
+    pid_t pid,
+    int *stat_loc,
+    int options
+);
+
 char *get_input(void);
 tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
+void pathSearch(tokenlist *tokens);
 
 
 int main(){
@@ -31,12 +38,51 @@ while (1) {
     if(strcmp(tokens->items[0],"echo")==0){                                 //if echo is input print out second arguement
         printf("%s\n",tokens->items[1]);
     }
+    else{
+        pathSearch(tokens);
+    }
 
     free(input);                                                            //given cleanup
     free_tokens(tokens);
 }
 
 return 0;
+}
+
+void pathSearch(tokenlist *tokens){
+    int pid = fork();
+    FILE *file;
+    char wholePath[strlen(getenv("PATH"))]; 
+    strcpy(wholePath,getenv("PATH"));
+    char *path = strtok(wholePath,":"); //splits the path by colon;
+    char pathCommand[strlen(wholePath)];
+    int found = -1;
+    
+    if (pid == 0){
+        //in child
+        while(path != NULL){
+            strcpy(pathCommand,path);
+
+            // adds a / and then the command
+            strcat(pathCommand,"/");
+            strcat(pathCommand,tokens->items[0]);
+        
+            // if file exists
+            if( access(pathCommand, R_OK) == 0){
+                execv(pathCommand,tokens->items);
+                found = 0;
+            }
+            // continues splitting until there is no more string left to split
+            path = strtok(NULL,":");
+        }
+        if (found != 0){
+            printf("%s", "command not found");
+        }
+    }
+    else{
+        waitpid(pid,NULL,0);
+    }
+   
 }
 
 tokenlist *new_tokenlist(void){
