@@ -41,7 +41,6 @@ int main(){
             printf("%s\n",tokens->items[1]);
         }
         else if(strcmp(tokens->items[0],"cd")==0){
-            char s[100];
             if(tokens->size==1){
                 chdir(getenv("HOME"));
                 char *cwd = getcwd(NULL, 0);
