@@ -35,37 +35,31 @@ int main(){
         for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
             printf("token %d: (%s)\n", i, tokens->items[i]);
         }
-
-
         if(strcmp(tokens->items[0],"echo")==0){                         //if echo is input print out second arguement
             printf("%s\n",tokens->items[1]);
         }
-        else if(strcmp(tokens->items[0],"cd")==0){
-            if(tokens->size==1){
+        else if(strcmp(tokens->items[0],"cd")==0){                  //cd
+            if(tokens->size==1){                                //if cd is only arg
                 chdir(getenv("HOME"));
                 char *cwd = getcwd(NULL, 0);
                 setenv("PWD", cwd, 1);        // 1 means overwrite
                 free(cwd);                   // IMPORTANT!
                 continue;
-            }else if(tokens->size==3){
+            }else if(tokens->size==3){                                  //if more than 2 args given
                  printf("ERROR: More than one argument is present\n");
                  continue;
             }
 
-            if(chdir(tokens->items[1])!=0){
+            if(chdir(tokens->items[1])!=0){                             //try's chdir if therre is error print error           
                 perror("ERROR");
             }
-            char *cwd = getcwd(NULL, 0);
+            char *cwd = getcwd(NULL, 0);                            //change PWD
             setenv("PWD", cwd, 1);  // 1 means overwrite
             free(cwd);                   // IMPORTANT!
         }  
         else{
             pathSearch(tokens);
         }
-
-
-
-
         free(input);                                                            //given cleanup
         free_tokens(tokens);
     }
