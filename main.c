@@ -27,25 +27,49 @@ void pathSearch(tokenlist *tokens);
 
 
 int main(){
-while (1) {
-    printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
-    char *input = get_input();
-    tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
-    
-    for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
-        printf("token %d: (%s)\n", i, tokens->items[i]);
-    }
-    if(strcmp(tokens->items[0],"echo")==0){                                 //if echo is input print out second arguement
-        printf("%s\n",tokens->items[1]);
-    }
-    else{
-        pathSearch(tokens);
-    }
+    while (1) {
+        printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
+        char *input = get_input();
+        tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
+        
+        for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
+            printf("token %d: (%s)\n", i, tokens->items[i]);
+        }
 
-    free(input);                                                            //given cleanup
-    free_tokens(tokens);
-}
 
+        if(strcmp(tokens->items[0],"echo")==0){                         //if echo is input print out second arguement
+            printf("%s\n",tokens->items[1]);
+        }
+        else if(strcmp(tokens->items[0],"cd")==0){
+            char s[100];
+            if(tokens->size==1){
+                chdir(getenv("HOME"));
+                char *cwd = getcwd(NULL, 0);
+                setenv("PWD", cwd, 1);        // 1 means overwrite
+                free(cwd);                   // IMPORTANT!
+                continue;
+            }else if(tokens->size==3){
+                 printf("ERROR: More than one argument is present\n");
+                 continue;
+            }
+
+            if(chdir(tokens->items[1])!=0){
+                perror("ERROR");
+            }
+            char *cwd = getcwd(NULL, 0);
+            setenv("PWD", cwd, 1);  // 1 means overwrite
+            free(cwd);                   // IMPORTANT!
+        }  
+        else{
+            pathSearch(tokens);
+        }
+
+
+
+
+        free(input);                                                            //given cleanup
+        free_tokens(tokens);
+    }
 return 0;
 }
 
@@ -82,9 +106,7 @@ void pathSearch(tokenlist *tokens){
     else{
         waitpid(pid,NULL,0);
     }
-   
 }
-
 tokenlist *new_tokenlist(void){
     tokenlist *tokens = (tokenlist *) malloc(sizeof(tokenlist));
     tokens->size = 0;
