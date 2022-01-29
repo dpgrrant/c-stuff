@@ -24,6 +24,7 @@ tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 void pathSearch(tokenlist *tokens);
+int dup(int fd);
 
 
 int main(){
@@ -35,8 +36,10 @@ while (1) {
     for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
         printf("token %d: (%s)\n", i, tokens->items[i]);
     }
-    if(strcmp(tokens->items[0],"echo")==0){                                 //if echo is input print out second arguement
-        printf("%s\n",tokens->items[1]);
+    if(strcmp(tokens->items[0],"echo")==0){  
+        for (int i = 1; i < tokens->size; i++){                               //if echo is input print out second arguement
+            printf("%s%s",tokens->items[i], " ");
+        }
     }
     else{
         pathSearch(tokens);
@@ -49,39 +52,209 @@ while (1) {
 return 0;
 }
 
+
 void pathSearch(tokenlist *tokens){
-    int pid = fork();
-    FILE *file;
-    char wholePath[strlen(getenv("PATH"))]; 
+    pid_t pid = fork();
+   // FILE *file;
+    char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
     char *path = strtok(wholePath,":"); //splits the path by colon;
-    char pathCommand[strlen(wholePath)];
+    char *pathCommand = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int found = -1;
+
+
+    //FILE *in;
+    char *fromFile;
+    tokenlist *newTokens = new_tokenlist();
+    int afterTok = -1;
+    int writeFile = -1;
+    int readFile = -1;
+    char* fileName;
+    char* inFileName;
+    int fd;
+    int fd2;
+
+    printf("why");
+
+    char *localCommand = tokens->items[0];
+    char *rmLocal = malloc(strlen(localCommand)+1);
+    int changed = -1;
+
+    
+
+    // checks if command is a local command
+    for (int i = 0; i < strlen(localCommand); i++){
+        if (localCommand[i] == '.'){
+            strcpy(pathCommand,getenv("PWD"));
+            strcpy(rmLocal,&localCommand[i+1]);
+            changed = 0;
+            
+        }
+        else if (localCommand[i] == '/'){
+            strcpy(rmLocal,&localCommand[i+1]);
+            changed = 0;
+        }
+
+    }
+    // if there is a period or a slash changes command to proper command
+    if (changed == 0){
+        strcpy(tokens->items[0], rmLocal);
+    }
+    free(rmLocal);
+
+
+    // loops through all the tokens checking whether there is a <, >, or |
+    for (int i = 0; i < tokens->size; i++){
+        if (strcmp(tokens->items[i],"<") == 0){
+            afterTok = 0;
+            readFile = 0;
+            if (fopen(tokens->items[i+1],"r")){
+                inFileName = tokens->items[i+1];
+            }
+    
+            // opens file if able and reads everything
+          /*  file = fopen(tokens->items[i+1],"r" );
+            if (file != NULL){
+                while( fscanf(file,"%s", fromFile) == 1){
+                    //printf("%s",fromFile);
+                    add_token(newTokens, fromFile);
+                }
+                fclose(file); 
+            }
+            else{
+                printf("%s", "Error file does not exist or is not a file");
+            } */
+        }
+        else if (strcmp(tokens->items[i], ">") == 0){
+            afterTok = 0;
+            writeFile = 0;
+            fileName = tokens->items[i+1];
+            //fd = open(tokens->items[i+1],O_RDWR | O_CREAT,0666);
+        }
+        else{
+            if (afterTok == 0){
+                afterTok = -1;
+            }
+            else{
+                add_token(newTokens,tokens->items[i]);
+            }
+        }
+
+        
+    }
+    char *copyFile = malloc(strlen(fileName)+1);
+    char *copyFile2 = malloc(strlen(inFileName)+1);
+    if (writeFile == 0){
+        //char *copyFile = malloc(strlen(fileName)+1);
+        strcpy(copyFile,fileName);
+    }
+
+    if (readFile == 0){
+       // char *copyFile2 = malloc(strlen(inFileName)+1);
+        strcpy(copyFile2,inFileName);
+    }
+    tokens = newTokens;
+    
+  
     
     if (pid == 0){
         //in child
-        while(path != NULL){
-            strcpy(pathCommand,path);
 
-            // adds a / and then the command
+        // changed checks whether it is a local command
+        if (changed != 0){
+            while(path != NULL){
+                strcpy(pathCommand,path);
+
+                // adds a / and then the command
+                strcat(pathCommand,"/");
+                strcat(pathCommand,tokens->items[0]);
+        
+                // if file exists
+                if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
+                    if (writeFile == 0 || readFile == 0){
+                        if (writeFile == 0){
+                            printf("doing a file redirection");
+                            close(1); //closes STDOUT
+                            fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
+                            dup(3);
+                            close(3);
+                        // printf("doing a file redirection");
+                            execv(pathCommand,tokens->items);
+                            found = 0;
+                        }
+                        else{
+                            //fd2 = open(copyFile2,O_RDONLY,0666);
+                            close(0);
+                            fd2 = open(copyFile2,O_RDONLY,0666);
+                            dup(3);
+                            close(3);
+                            execv(pathCommand,tokens->items);
+                            found = 0;
+                        }
+                
+                    }
+                    else{
+                        execv(pathCommand,tokens->items);
+                        found = 0; 
+                    
+                    }
+                
+                
+                }   
+                // continues splitting until there is no more string left to split
+                path = strtok(NULL,":");
+            }
+        }
+        else {
             strcat(pathCommand,"/");
             strcat(pathCommand,tokens->items[0]);
-        
-            // if file exists
-            if( access(pathCommand, R_OK) == 0){
-                execv(pathCommand,tokens->items);
-                found = 0;
-            }
-            // continues splitting until there is no more string left to split
-            path = strtok(NULL,":");
+            if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
+                if (writeFile == 0 || readFile == 0){
+                    if (writeFile == 0){
+                        printf("doing a file redirection");
+                        close(1); //closes STDOUT
+                        fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
+                        dup(3);
+                        close(3);
+                        // printf("doing a file redirection");
+                        execv(pathCommand,tokens->items);
+                        found = 0;
+                    }
+                    else{
+                        //fd2 = open(copyFile2,O_RDONLY,0666);
+                        close(0); //closes STDIN
+                        fd2 = open(copyFile2,O_RDONLY,0666);
+                        dup(3);
+                        close(3);
+                        execv(pathCommand,tokens->items);
+                        found = 0; 
+                    } 
+                
+                }
+                else{
+                    execv(pathCommand,tokens->items);
+                    found = 0; 
+                    
+                }
+                
+                
+            } 
+            
+            
         }
         if (found != 0){
-            printf("%s", "command not found");
+            printf("command not found");
         }
     }
     else{
         waitpid(pid,NULL,0);
     }
+    free(copyFile);
+    free(copyFile2);
+    free(pathCommand);
+    free(wholePath);
+
+    
    
 }
 
