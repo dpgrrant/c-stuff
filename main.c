@@ -31,8 +31,11 @@ int main(){
 while (1) {
     printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
     char *input = get_input();
-    tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
+    tokenlist *tokens = get_tokens(input);                                 //given input parser/tokenizer
     
+    if (tokens->size == 0){
+        continue;
+    }
     for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
         printf("token %d: (%s)\n", i, tokens->items[i]);
     }
@@ -55,7 +58,6 @@ return 0;
 
 void pathSearch(tokenlist *tokens){
     pid_t pid = fork();
-   // FILE *file;
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
     char *path = strtok(wholePath,":"); //splits the path by colon;
@@ -63,18 +65,17 @@ void pathSearch(tokenlist *tokens){
     int found = -1;
 
 
-    //FILE *in;
+    
     char *fromFile;
     tokenlist *newTokens = new_tokenlist();
     int afterTok = -1;
     int writeFile = -1;
     int readFile = -1;
-    char* fileName;
-    char* inFileName;
+    char* fileName = "empty";
+    char* inFileName = "empty";
     int fd;
     int fd2;
 
-    printf("why");
 
     char *localCommand = tokens->items[0];
     char *rmLocal = malloc(strlen(localCommand)+1);
@@ -108,28 +109,12 @@ void pathSearch(tokenlist *tokens){
         if (strcmp(tokens->items[i],"<") == 0){
             afterTok = 0;
             readFile = 0;
-            if (fopen(tokens->items[i+1],"r")){
-                inFileName = tokens->items[i+1];
-            }
-    
-            // opens file if able and reads everything
-          /*  file = fopen(tokens->items[i+1],"r" );
-            if (file != NULL){
-                while( fscanf(file,"%s", fromFile) == 1){
-                    //printf("%s",fromFile);
-                    add_token(newTokens, fromFile);
-                }
-                fclose(file); 
-            }
-            else{
-                printf("%s", "Error file does not exist or is not a file");
-            } */
+            inFileName = tokens->items[i+1]; 
         }
         else if (strcmp(tokens->items[i], ">") == 0){
             afterTok = 0;
             writeFile = 0;
             fileName = tokens->items[i+1];
-            //fd = open(tokens->items[i+1],O_RDWR | O_CREAT,0666);
         }
         else{
             if (afterTok == 0){
@@ -142,19 +127,17 @@ void pathSearch(tokenlist *tokens){
 
         
     }
+    
     char *copyFile = malloc(strlen(fileName)+1);
     char *copyFile2 = malloc(strlen(inFileName)+1);
-    if (writeFile == 0){
-        //char *copyFile = malloc(strlen(fileName)+1);
-        strcpy(copyFile,fileName);
-    }
+    //if (writeFile == 0){
+    strcpy(copyFile,fileName);
+   // }
 
-    if (readFile == 0){
-       // char *copyFile2 = malloc(strlen(inFileName)+1);
-        strcpy(copyFile2,inFileName);
-    }
+    //if (readFile == 0){
+    strcpy(copyFile2,inFileName);
+   // }
     tokens = newTokens;
-    
   
     
     if (pid == 0){
@@ -182,7 +165,7 @@ void pathSearch(tokenlist *tokens){
                             execv(pathCommand,tokens->items);
                             found = 0;
                         }
-                        else{
+                        if (readFile == 0){
                             //fd2 = open(copyFile2,O_RDONLY,0666);
                             close(0);
                             fd2 = open(copyFile2,O_RDONLY,0666);
@@ -220,7 +203,7 @@ void pathSearch(tokenlist *tokens){
                         execv(pathCommand,tokens->items);
                         found = 0;
                     }
-                    else{
+                    if (readFile == 0){
                         //fd2 = open(copyFile2,O_RDONLY,0666);
                         close(0); //closes STDIN
                         fd2 = open(copyFile2,O_RDONLY,0666);
