@@ -31,7 +31,11 @@ int main(){
         printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
         char *input = get_input();
         tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
-        
+
+
+        if(tokens->size==0){
+            continue;
+        }
         for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
             printf("token %d: (%s)\n", i, tokens->items[i]);
         }
