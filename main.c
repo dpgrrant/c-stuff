@@ -156,17 +156,20 @@ void pathSearch(tokenlist *tokens){
                 if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
-                            printf("doing a file redirection");
                             close(1); //closes STDOUT
                             fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
                             dup(3);
                             close(3);
-                        // printf("doing a file redirection");
+                            if (readFile == 0){
+                                close(0);
+                                fd2 = open(copyFile2,O_RDONLY,0666);
+                                dup(3);
+                                close(3);
+                            }
                             execv(pathCommand,tokens->items);
                             found = 0;
                         }
                         if (readFile == 0){
-                            //fd2 = open(copyFile2,O_RDONLY,0666);
                             close(0);
                             fd2 = open(copyFile2,O_RDONLY,0666);
                             dup(3);
@@ -194,12 +197,16 @@ void pathSearch(tokenlist *tokens){
             if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
                 if (writeFile == 0 || readFile == 0){
                     if (writeFile == 0){
-                        printf("doing a file redirection");
                         close(1); //closes STDOUT
                         fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
                         dup(3);
                         close(3);
-                        // printf("doing a file redirection");
+                         if (readFile == 0){
+                            close(0);
+                            fd2 = open(copyFile2,O_RDONLY,0666);
+                            dup(3);
+                            close(3);
+                        }
                         execv(pathCommand,tokens->items);
                         found = 0;
                     }
