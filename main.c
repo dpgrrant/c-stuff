@@ -39,8 +39,11 @@ int main(){
         for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
             printf("token %d: (%s)\n", i, tokens->items[i]);
         }
-        if(strcmp(tokens->items[0],"echo")==0){                         //if echo is input print out second arguement
-            printf("%s\n",tokens->items[1]);
+        if(strcmp(tokens->items[0],"echo")==0){         //if echo is input print out second arguement
+            for(int i = 1; i < tokens->size; i++){
+                printf("%s ",tokens->items[i]);
+            }
+            
         }
         else if(strcmp(tokens->items[0],"cd")==0){                  //cd
             if(tokens->size==1){                                //if cd is only arg
@@ -109,7 +112,6 @@ void pathSearch(tokenlist *tokens){
             strcpy(rmLocal,&localCommand[i+1]);
             changed = 0;
         }
-
     }
     // if there is a period or a slash changes command to proper command
     if (changed == 0){
@@ -138,8 +140,6 @@ void pathSearch(tokenlist *tokens){
                 add_token(newTokens,tokens->items[i]);
             }
         }
-
-        
     }
     
     char *copyFile = malloc(strlen(fileName)+1);
@@ -191,15 +191,11 @@ void pathSearch(tokenlist *tokens){
                             execv(pathCommand,tokens->items);
                             found = 0;
                         }
-                
                     }
                     else{
                         execv(pathCommand,tokens->items);
                         found = 0; 
-                    
                     }
-                
-                
                 }   
                 // continues splitting until there is no more string left to split
                 path = strtok(NULL,":");
@@ -233,18 +229,13 @@ void pathSearch(tokenlist *tokens){
                         execv(pathCommand,tokens->items);
                         found = 0; 
                     } 
-                
                 }
                 else{
                     execv(pathCommand,tokens->items);
                     found = 0; 
                     
                 }
-                
-                
-            } 
-            
-            
+            }    
         }
         if (found != 0){
             printf("command not found");
