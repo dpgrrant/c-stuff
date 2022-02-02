@@ -85,6 +85,7 @@ void doPiping(tokenlist *tokens,char *path){
     char *path1 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     char *path2 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int counter;
+    char *temp;
     
 
     for (int i = 0; i < tokens->size; i++){
@@ -96,17 +97,14 @@ void doPiping(tokenlist *tokens,char *path){
         if (isPiped == 0){
             isPiped = -1;
         }
-       // else {
-            //add_token(newTokens,tokens->items[i]);
-        //}
     }
     
-    //pipe(p_fds);
     for (int i = 0; i < timesPiped; i++){
         counter = 0;
         newTokens1 = new_tokenlist();
         newTokens2 = new_tokenlist();
         for (int j = 0; j < tokens->size; j++){
+           // strcpy(temp,tokens->items[j]);
             if (counter == i && strcmp(tokens->items[j],"|") != 0){
                 add_token(newTokens1,tokens->items[j]);
             }
@@ -116,6 +114,9 @@ void doPiping(tokenlist *tokens,char *path){
             else if (strcmp(tokens->items[j],"|") == 0){
                 counter ++;
             }
+        }
+        for (int j = 0; j < newTokens2->size; j++){
+            //printf("%s\n", newTokens2->items[j]);
         }
         //creates the path for the two given commands for piping
         strcpy(path1,path);
@@ -127,11 +128,9 @@ void doPiping(tokenlist *tokens,char *path){
         //printf("%s\n",path1);
         //printf("%s\n",path2);
 
-        //p_fds[0] = open(newTokens->items[i], O_RDWR | O_TRUNC,0666);
-        //p_fds[1] = open(newTokens->items[i+1],O_RDWR | O_TRUNC,0666);
         pipe(p_fds);
         pid1 = fork();
-        pid2 = fork();
+        //pid2 = fork();
         if (pid1 == 0){
             close(p_fds[0]);
           //  printf("%s",path1);
@@ -142,8 +141,8 @@ void doPiping(tokenlist *tokens,char *path){
             execv(path1,newTokens1->items);
             exit(1);
         }
-        //pid2 = fork();
-        else if(pid2 == 0){
+        pid2 = fork();
+        if(pid2 == 0){
             close(p_fds[1]);
             close(0);
             dup(p_fds[0]);
@@ -153,20 +152,22 @@ void doPiping(tokenlist *tokens,char *path){
             exit(1);
         }
         //if (pid2 != 0 && pid1 != 0){
-        else {
+        //else {
             close(p_fds[0]);
             close(p_fds[1]);
             waitpid(pid1,NULL,0);
             waitpid(pid2,NULL,0);
-        }
+        //}
     }
     free(path1);
     free(path2);
+    free_tokens(newTokens1);
+    free_tokens(newTokens2);
 
 }
 
 void pathSearch(tokenlist *tokens){
-    pid_t pid = fork();
+    //pid_t pid = fork();
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     char *pipePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
@@ -251,6 +252,7 @@ void pathSearch(tokenlist *tokens){
   
     if (isPiped != 0){
         tokens = newTokens;
+        pid_t pid = fork();
         if (pid == 0){
             //in child
 
@@ -264,7 +266,7 @@ void pathSearch(tokenlist *tokens){
                     strcat(pathCommand,tokens->items[0]);
         
                     // if file exists
-                    if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
+                    if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
                         if (writeFile == 0 || readFile == 0){
                             if (writeFile == 0){
                                 close(1); //closes STDOUT
@@ -302,7 +304,7 @@ void pathSearch(tokenlist *tokens){
             else {
                 strcat(pathCommand,"/");
                 strcat(pathCommand,tokens->items[0]);
-                if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
+                if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
