@@ -12,6 +12,16 @@ int size;
 char **items;
 } tokenlist;
 
+typedef struct {
+    pid_t pid;
+    char *cmd;
+} job;
+
+typedef struct {
+    job* jobs;      // Stores all background processes
+    int size;
+} jobList;
+
 pid_t waitpid(
     pid_t pid,
     int *stat_loc,
@@ -23,10 +33,13 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
-void pathSearch(tokenlist *tokens);
+void pathSearch(tokenlist *tokens, int isBackgroundProc);
 
 
 int main(){
+   jobList jobs;
+   jobs.size  = 0;
+
     while (1) {
         printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
         char *input = get_input();
@@ -65,7 +78,19 @@ int main(){
             free(cwd);                   // IMPORTANT!
         }  
         else{
-            pathSearch(tokens);
+            if(strcmp(tokens->items[tokens->size-1], "&")==0){
+                
+                
+                
+                // TODO: cut out the &
+
+
+
+                pathSearch(tokens, 1);      // Run as background process    
+            }
+            else{
+                pathSearch(tokens, 0);
+            }
         }
         free(input);                                                            //given cleanup
         free_tokens(tokens);
@@ -73,7 +98,7 @@ int main(){
 return 0;
 }
 
-void pathSearch(tokenlist *tokens){
+void pathSearch(tokenlist *tokens, int isBackgroundProc){
     pid_t pid = fork();
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
@@ -242,7 +267,12 @@ void pathSearch(tokenlist *tokens){
         }
     }
     else{
-        waitpid(pid,NULL,0);
+        if(isBackgroundProc == 1){
+            // Is a background process, call addJob()
+        }
+        else{
+            waitpid(pid,NULL,0);
+        }
     }
     free(copyFile);
     free(copyFile2);
@@ -321,4 +351,37 @@ for (int i = 0; i < tokens->size; i++)
 free(tokens->items[i]);
 free(tokens->items);
 free(tokens);
+}
+
+void addJob(jobList *jobs, char* command, pid_t pid){
+    jobs->jobs = realloc(jobs->jobs, 1 * sizeof(job));
+    jobs->size++;
+
+    jobs->jobs[jobs->size-1].cmd = command;
+    jobs->jobs[jobs->size-1].pid = pid;
+
+    printf("[%d][%d]", jobs->size, pid);
+}
+
+void removeJob(jobList *jobs, int id){
+    // This is a pain point, maybe implement a list or array? (compared to the current pointer "list")
+}
+
+void listJobs(jobList *jobs){
+    for(int i = 0; i < jobs->size-1; i++){
+        printf("[%d][%d][%s]\n", i, jobs->jobs[i].pid, jobs->jobs[i].cmd);
+    }
+}
+
+void checkJobs(jobList *jobs){
+    int statLoc;
+    for(int i = 0; i < jobs->size-1; i++){
+        if((jobs->jobs[i].pid = waitpid(jobs->jobs[i].pid, &statLoc, WNOHANG)) == -1){     // Job hit an error
+            printf("There was an error with a background job");
+        }
+        else if(jobs->jobs[i].pid != 0){        // Job finished
+            printf("SUCCESFUL[%d]+[%s]\n", i, jobs->jobs[i].cmd);
+            removeJob(jobs, i);
+        }
+    }
 }
