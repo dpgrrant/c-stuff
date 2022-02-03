@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/types.h> 
 
+#define MAXBGPROC 10
 
 typedef struct {
 int size;
@@ -15,10 +16,11 @@ char **items;
 typedef struct {
     pid_t pid;
     char *cmd;
+    int active;
 } job;
 
 typedef struct {
-    job* jobs;      // Stores all background processes
+    job jobs[MAXBGPROC];      // Stores all background processes
     int size;
 } jobList;
 
@@ -33,21 +35,28 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
-void pathSearch(tokenlist *tokens, int isBackgroundProc);
+void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs);
 void doublePiping(tokenlist *tokens,char *path);
 void singlePiping(tokenlist *tokens,char *path);
 
+void addJob(jobList *jobs, tokenlist *tokens, pid_t pid);
+void removeJob(jobList *jobs, int id);
+void listJobs(jobList *jobs);
+void checkJobs(jobList *jobs);
 
 int main(){
-   jobList jobs;
-   jobs.size  = 0;
+    jobList jobs;
+    jobs.size  = 0;
+    for(int i = 0; i < MAXBGPROC; i++){
+        jobs.jobs[i].active = 0;
+    }
 
     while (1) {
         printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
         char *input = get_input();
         tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
 
-
+        checkJobs(&jobs);
         if(tokens->size==0){
             continue;
         }
@@ -81,22 +90,20 @@ int main(){
         }  
         else{
             if(strcmp(tokens->items[tokens->size-1], "&")==0){
-                
-                
-                
-                // TODO: cut out the &
+                free(tokens->items[tokens->size-1]);    // Remove the '&' token
+                tokens->size--;
 
-
-
-                pathSearch(tokens, 1);      // Run as background process    
+                pathSearch(tokens, 1, &jobs);      // Run as background process    
             }
             else{
-                pathSearch(tokens, 0);
+                pathSearch(tokens, 0, &jobs);
             }
         }
         free(input);                                                            //given cleanup
         free_tokens(tokens);
     }
+    // TODO: Need to free jobs here.
+
 return 0;
 }
 
@@ -154,7 +161,7 @@ void singlePiping(tokenlist *tokens,char *path){
             execv(path2,newTokens2->items);
             exit(1);
         }
-           
+        // TODO: handle bg processes for piping here.   
             close(3);
             close(4);
             waitpid(pid1,NULL,0);
@@ -261,7 +268,7 @@ void doublePiping(tokenlist *tokens,char *path){
 }
 
 //includes path search, executing external commands, and IO redirection
-void pathSearch(tokenlist *tokens, int isBackgroundProc){
+void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     char *pipePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
@@ -435,7 +442,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc){
         else{
             if(isBackgroundProc == 1){
                 // Is a background process, call addJob()
-                //addJob(jobs,tokens,pid);
+                addJob(jobs, tokens, pid);
             }
             else{
                 waitpid(pid,NULL,0);
@@ -551,35 +558,59 @@ void free_tokens(tokenlist *tokens){
     free(tokens);
 }
 
-void addJob(jobList *jobs, char* command, pid_t pid){
-    jobs->jobs = realloc(jobs->jobs, 1 * sizeof(job));
+void addJob(jobList *jobs, tokenlist *tokens, pid_t pid){
+    char command[100] = "";
+    char cm2[20] = "";
+    strcat(command, cm2);
+    for(int i = 0; i < tokens->size-1; i++){
+        strcat(command, strcat(tokens->items[i], " "));
+    }
+    strcat(command, tokens->items[tokens->size-1]);
     jobs->size++;
 
-    jobs->jobs[jobs->size-1].cmd = command;
-    jobs->jobs[jobs->size-1].pid = pid;
+    int newPos = 0;
+    while (jobs->jobs[newPos].active == 1 && newPos < MAXBGPROC)
+    {
+        newPos++;
+    }
 
-    printf("[%d][%d]", jobs->size, pid);
+    if (newPos > MAXBGPROC - 1)
+    {
+        printf("You have hit the max amount of background process. Please wait for a process to finish.\n");
+        return;
+    }
+
+    jobs->jobs[newPos].cmd = strdup(command);
+    jobs->jobs[newPos].pid = pid;
+    jobs->jobs[newPos].active = 1;
+
+    printf("[%d][%d]", newPos, pid);
 }
 
 void removeJob(jobList *jobs, int id){
-    // This is a pain point, maybe implement a list or array? (compared to the current pointer "list")
+    jobs->jobs[id].active = 0;
+    jobs->size--;
 }
 
 void listJobs(jobList *jobs){
-    for(int i = 0; i < jobs->size-1; i++){
-        printf("[%d][%d][%s]\n", i, jobs->jobs[i].pid, jobs->jobs[i].cmd);
+    for(int i = 0; i < MAXBGPROC; i++){
+        if(jobs->jobs[i].active == 1){
+            printf("[%d][%d][%s]\n", i, jobs->jobs[i].pid, jobs->jobs[i].cmd);
+        }
     }
 }
 
 void checkJobs(jobList *jobs){
     int statLoc;
-    for(int i = 0; i < jobs->size-1; i++){
-        if((jobs->jobs[i].pid = waitpid(jobs->jobs[i].pid, &statLoc, WNOHANG)) == -1){     // Job hit an error
-            printf("There was an error with a background job");
-        }
-        else if(jobs->jobs[i].pid != 0){        // Job finished
-            printf("SUCCESFUL[%d]+[%s]\n", i, jobs->jobs[i].cmd);
-            removeJob(jobs, i);
+    for(int i = 0; i < MAXBGPROC; i++){
+        if(jobs->jobs[i].active == 1){
+            if((jobs->jobs[i].pid = waitpid(jobs->jobs[i].pid, &statLoc, WNOHANG)) == -1){     // Job hit an error
+                printf("There was an error with a background job");
+            }
+            else if(jobs->jobs[i].pid != 0){        // Job finished, print job
+                printf("[%d]+[%s]\n", i, jobs->jobs[i].cmd);
+                removeJob(jobs, i);
+            }
         }
     }
 }
