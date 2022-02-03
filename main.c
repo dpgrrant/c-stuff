@@ -34,6 +34,8 @@ tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 void pathSearch(tokenlist *tokens, int isBackgroundProc);
+void doublePiping(tokenlist *tokens,char *path);
+void singlePiping(tokenlist *tokens,char *path);
 
 
 int main(){
@@ -98,12 +100,174 @@ int main(){
 return 0;
 }
 
+void singlePiping(tokenlist *tokens,char *path){
+    pid_t pid1;
+    pid_t pid2;
+    pid_t pid3;
+    tokenlist *newTokens1 = new_tokenlist();
+    tokenlist *newTokens2 = new_tokenlist();
+    int isPiped = -1;
+    int timesPiped = 0;
+    int p_fds[2];
+    char *path1 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    char *path2 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    int counter = 0;
+    char *temp;
+    
+    
+    for (int j = 0; j < tokens->size; j++){
+            if (counter == 0 && strcmp(tokens->items[j],"|") != 0){
+                add_token(newTokens1,tokens->items[j]);
+            }
+            else if (strcmp(tokens->items[j],"|") != 0){
+                add_token(newTokens2,tokens->items[j]);
+            }
+            else if (strcmp(tokens->items[j],"|") == 0){
+                counter++;
+            }
+    }
+
+    //creates the path for the two given commands for piping
+        strcpy(path1,path);
+        strcpy(path2,path);
+        strcat(path1,"/");
+        strcat(path2,"/");
+        strcat(path1,newTokens1->items[0]);
+        strcat(path2,newTokens2->items[0]);
+
+        pipe(p_fds);
+        pid1 = fork();
+        if (pid1 == 0){
+            close(3); //closes unused end of pipe
+            close(1); //closes standard output
+            dup(4); //places pipe into output
+            close(4); //closes pipe
+            execv(path1,newTokens1->items);
+            exit(1);
+        }
+        pid2 = fork();
+        if(pid2 == 0){
+            close(4); //closes unused end of pipe
+            close(0); //closes standard input
+            dup(3); //places pipe into input
+            close(3); //closes pipe
+            execv(path2,newTokens2->items);
+            exit(1);
+        }
+           
+            close(3);
+            close(4);
+            waitpid(pid1,NULL,0);
+            waitpid(pid2,NULL,0);
+        
+    
+    
+    free(path1);
+    free(path2);
+    free_tokens(newTokens1);
+    free_tokens(newTokens2);
+}
+
+void doublePiping(tokenlist *tokens,char *path){
+    
+    pid_t pid1;
+    pid_t pid2;
+    pid_t pid3;
+    tokenlist *newTokens1 = new_tokenlist();
+    tokenlist *newTokens2 = new_tokenlist();
+    tokenlist *newTokens3 = new_tokenlist();
+    int isPiped = -1;
+    int timesPiped = 0;
+    int p_fds[2];
+    char *path1 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    char *path2 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    char *path3 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    int counter = 0;
+    char *temp;
+    
+    
+    for (int j = 0; j < tokens->size; j++){
+            //newTokens1 = new_tokenlist();            
+            //newTokens2 = new_tokenlist();
+            //newTokens3 = new_tokenlist();
+            if (counter == 0 && strcmp(tokens->items[j],"|") != 0){
+                add_token(newTokens1,tokens->items[j]);
+            }
+            else if (counter == 1 && strcmp(tokens->items[j],"|") != 0){
+                add_token(newTokens2,tokens->items[j]);
+            }
+            else if (counter == 2 && strcmp(tokens->items[j],"|") != 0){
+                add_token(newTokens3,tokens->items[j]);
+            }
+            else if (strcmp(tokens->items[j],"|") == 0){
+                counter++;
+            }
+    }
+
+    //creates the path for the two given commands for piping
+        strcpy(path1,path);
+        strcpy(path2,path);
+        strcpy(path3,path);
+        strcat(path1,"/");
+        strcat(path2,"/");
+        strcat(path3,"/");
+        strcat(path1,newTokens1->items[0]);
+        strcat(path2,newTokens2->items[0]);
+        strcat(path3,newTokens3->items[0]);
+
+        pipe(p_fds);
+        pid1 = fork();
+        if (pid1 == 0){
+            close(3);
+            close(1); //closes standard output
+            dup(4);
+            close(4);
+            execv(path1,newTokens1->items);
+            exit(1);
+        }
+        pid2 = fork();
+        if (pid2 == 0){
+            close(1);
+            dup(4);
+            close(4);
+            close(0);
+            dup(3);
+            close(3);
+            execv(path2,newTokens2->items);
+            exit(1);
+
+        }
+        pid3 = fork();
+        if(pid3 == 0){
+            close(4);
+            close(0);
+            dup(3);
+            close(3);
+            execv(path3,newTokens3->items);
+            exit(1);
+        }
+           
+        close(3);
+        close(4);
+        waitpid(pid1,NULL,0);
+        //waitpid(pid2,NULL,0);
+        waitpid(pid3,NULL,0);
+        
+    
+    
+    free(path1);
+    free(path2);
+    free(path3);
+}
+
+//includes path search, executing external commands, and IO redirection
 void pathSearch(tokenlist *tokens, int isBackgroundProc){
-    pid_t pid = fork();
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
+    char *pipePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
     char *path = strtok(wholePath,":"); //splits the path by colon;
     char *pathCommand = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
+    char *pathPipeCommand = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int found = -1;
 
 
@@ -117,6 +281,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc){
     char* inFileName = "empty";
     int fd;
     int fd2;
+    int isPiped = 0;
 
 
     char *localCommand = tokens->items[0];
@@ -157,6 +322,9 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc){
             writeFile = 0;
             fileName = tokens->items[i+1];
         }
+        else if (strcmp(tokens->items[i],"|") == 0){
+            isPiped ++;
+        }
         else{
             if (afterTok == 0){
                 afterTok = -1;
@@ -169,30 +337,66 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc){
     
     char *copyFile = malloc(strlen(fileName)+1);
     char *copyFile2 = malloc(strlen(inFileName)+1);
-    //if (writeFile == 0){
-    strcpy(copyFile,fileName);
-   // }
-
-    //if (readFile == 0){
-    strcpy(copyFile2,inFileName);
-   // }
-    tokens = newTokens;
   
-    
-    if (pid == 0){
-        //in child
+    strcpy(copyFile,fileName);
+    strcpy(copyFile2,inFileName);
 
-        // changed checks whether it is a local command
-        if (changed != 0){
-            while(path != NULL){
-                strcpy(pathCommand,path);
+  
+    if (isPiped == 0){
+        tokens = newTokens;
+        pid_t pid = fork();
+        if (pid == 0){
+            //in child
 
-                // adds a / and then the command
+            // changed checks whether it is a local command
+            if (changed != 0){
+                while(path != NULL){
+                    strcpy(pathCommand,path);
+
+                    // adds a / and then the command
+                    strcat(pathCommand,"/");
+                    strcat(pathCommand,tokens->items[0]);
+        
+                    // if file exists
+                    if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
+                        if (writeFile == 0 || readFile == 0){
+                            if (writeFile == 0){
+                                close(1); //closes STDOUT
+                                fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
+                                dup(3);
+                                close(3);
+                                if (readFile == 0){
+                                    close(0);
+                                    fd2 = open(copyFile2,O_RDONLY,0666);
+                                    dup(3);
+                                    close(3);
+                                }
+                                execv(pathCommand,tokens->items);
+                                found = 0;
+                            }
+                            if (readFile == 0){
+                                close(0);
+                                fd2 = open(copyFile2,O_RDONLY,0666);
+                                dup(3);
+                                close(3);
+                                execv(pathCommand,tokens->items);
+                                found = 0;
+                            }
+                        }
+                        else{
+                            //printf("%s\n",pathCommand);
+                            execv(pathCommand,tokens->items);
+                            found = 0; 
+                        }
+                    }   
+                    // continues splitting until there is no more string left to split
+                    path = strtok(NULL,":");
+                }
+            }
+            else {
                 strcat(pathCommand,"/");
                 strcat(pathCommand,tokens->items[0]);
-        
-                // if file exists
-                if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
+                if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
@@ -209,80 +413,75 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc){
                             found = 0;
                         }
                         if (readFile == 0){
-                            close(0);
+                            close(0); //closes STDIN
                             fd2 = open(copyFile2,O_RDONLY,0666);
                             dup(3);
                             close(3);
                             execv(pathCommand,tokens->items);
-                            found = 0;
-                        }
+                            found = 0; 
+                        } 
                     }
                     else{
                         execv(pathCommand,tokens->items);
                         found = 0; 
+                    
                     }
-                }   
-                // continues splitting until there is no more string left to split
-                path = strtok(NULL,":");
+                }    
+            }
+            if (found != 0){
+                printf("command not found");
             }
         }
-        else {
-            strcat(pathCommand,"/");
-            strcat(pathCommand,tokens->items[0]);
-            if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)){
-                if (writeFile == 0 || readFile == 0){
-                    if (writeFile == 0){
-                        close(1); //closes STDOUT
-                        fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
-                        dup(3);
-                        close(3);
-                         if (readFile == 0){
-                            close(0);
-                            fd2 = open(copyFile2,O_RDONLY,0666);
-                            dup(3);
-                            close(3);
-                        }
-                        execv(pathCommand,tokens->items);
-                        found = 0;
-                    }
-                    if (readFile == 0){
-                        //fd2 = open(copyFile2,O_RDONLY,0666);
-                        close(0); //closes STDIN
-                        fd2 = open(copyFile2,O_RDONLY,0666);
-                        dup(3);
-                        close(3);
-                        execv(pathCommand,tokens->items);
-                        found = 0; 
-                    } 
-                }
-                else{
-                    execv(pathCommand,tokens->items);
-                    found = 0; 
-                    
-                }
-            }    
-        }
-        if (found != 0){
-            printf("command not found");
+        else{
+            if(isBackgroundProc == 1){
+                // Is a background process, call addJob()
+                //addJob(jobs,tokens,pid);
+            }
+            else{
+                waitpid(pid,NULL,0);
+            }
         }
     }
     else{
-        if(isBackgroundProc == 1){
-            // Is a background process, call addJob()
-        }
-        else{
-            waitpid(pid,NULL,0);
+        strcpy(pipePath,getenv("PATH"));
+        char *otherPath = strtok(pipePath,":"); //splits the path by colon;
+       // printf("%s\n", getenv("PATH"));
+        while(otherPath != NULL){
+           // printf("%s\n", otherPath);
+            strcpy(pathPipeCommand,otherPath);
+            // adds a / and then the command
+            strcat(pathPipeCommand,"/");
+            strcat(pathPipeCommand,tokens->items[0]);
+
+          //  printf("%s\n", pathPipeCommand);
+            // if file exists
+            if( access(pathPipeCommand, R_OK) == 0 || access(pathPipeCommand, X_OK) == 0){
+                if (isPiped == 1){
+                    singlePiping(tokens,otherPath);
+                    break;
+                }
+                else if (isPiped == 2){
+                    doublePiping(tokens,otherPath);
+                    break;
+                }
+                
+            
+            }
+
+
+            otherPath = strtok(NULL,":");
         }
     }
     free(copyFile);
     free(copyFile2);
     free(pathCommand);
+    free(pathPipeCommand);
     free(wholePath);
+    free(pipePath);
     free(rmLocal);
-
-    
-   
+  
 }
+
 tokenlist *new_tokenlist(void){
     tokenlist *tokens = (tokenlist *) malloc(sizeof(tokenlist));
     tokens->size = 0;
@@ -345,12 +544,11 @@ tokenlist *get_tokens(char *input){
     free(buf);
     return tokens;
 }
-void free_tokens(tokenlist *tokens)
-{
-for (int i = 0; i < tokens->size; i++)
-free(tokens->items[i]);
-free(tokens->items);
-free(tokens);
+void free_tokens(tokenlist *tokens){
+    for (int i = 0; i < tokens->size; i++)
+    free(tokens->items[i]);
+    free(tokens->items);
+    free(tokens);
 }
 
 void addJob(jobList *jobs, char* command, pid_t pid){
