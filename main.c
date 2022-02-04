@@ -35,7 +35,7 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
-void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist *validCMDs);
+int pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs);
 void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
 void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
 
@@ -51,15 +51,16 @@ int main(){
     for(int i = 0; i < MAXBGPROC; i++){
         jobs.jobs[i].active = 0;
     }
-    char *valid;
+    
     tokenlist *validCMDs=new_tokenlist();
 
     while (1) {
         printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
         char *input = get_input();
         tokenlist *tokens = get_tokens(input);                                  //given input parser/tokenizer
-
+        char *valid=(char *)malloc(sizeof(char));
         checkJobs(&jobs);
+        
         if(tokens->size==0){
             continue;
         }
@@ -67,22 +68,24 @@ int main(){
             for(int i = 1; i < tokens->size; i++){
                 printf("%s ",tokens->items[i]);
             }
-            valid=(char *)malloc(sizeof(char));
+            
             valid=combine(valid, tokens);
             add_token(validCMDs,valid);
+            free(valid);
             
         }
         else if(strcmp(tokens->items[0],"jobs")==0&&tokens->size==1){         //called "jobs", list all jobs
             listJobs(&jobs);
-                valid=(char *)malloc(sizeof(char));
+                
                 valid=combine(valid, tokens);
                 add_token(validCMDs,valid);
+                free(valid);
         }
         else if(strcmp(tokens->items[0],"cd")==0){                  //cd
-            if(tokens->size==1){                                //if cd is only arg
-                valid=(char *)malloc(sizeof(char));
+            if(tokens->size==1){                                //if cd is only arg          
                 valid=combine(valid, tokens);
                 add_token(validCMDs,valid);
+                free(valid);
                 chdir(getenv("HOME"));
                 char *cwd = getcwd(NULL, 0);
                 setenv("PWD", cwd, 1);        // 1 means overwrite
@@ -95,13 +98,16 @@ int main(){
 
             if(chdir(tokens->items[1])!=0){                             //try's chdir if therre is error print error           
                 perror("ERROR");
-            }
-            valid=(char *)malloc(sizeof(char));
+            }else{
             valid=combine(valid, tokens);
-                add_token(validCMDs,valid);
+            add_token(validCMDs,valid);
+            free(valid);
             char *cwd = getcwd(NULL, 0);                            //change PWD
             setenv("PWD", cwd, 1);  // 1 means overwrite
             free(cwd);                   // IMPORTANT!
+            }
+            
+
         }else if(strcmp(tokens->items[0],"exit")==0){
             if(validCMDs->size==0){
                 printf("No valid commands were executed in this shell. \n");
@@ -116,9 +122,9 @@ int main(){
                 printf("1: %s\n", validCMDs->items[validCMDs->size-1]);
                 printf("2: %s\n", validCMDs->items[validCMDs->size-2]);
                 printf("3: %s\n", validCMDs->items[validCMDs->size-3]);
-                break;
+                
             }
-            
+            break;
 
         }
         
@@ -126,10 +132,21 @@ int main(){
             if(strcmp(tokens->items[tokens->size-1], "&")==0){
                 free(tokens->items[tokens->size-1]);    // Remove the '&' token
                 tokens->size--;
-                pathSearch(tokens, 1, &jobs,validCMDs);      // Run as background process    
+                if(pathSearch(tokens, 1, &jobs)==1)      // Run as background process    
+                {
+                    valid=combine(valid, tokens);
+                    add_token(validCMDs,valid);
+                    free(valid);
+                }
+                
             }
             else{
-                pathSearch(tokens, 0, &jobs,validCMDs);
+                if(pathSearch(tokens, 0, &jobs)==1)
+                {
+                    valid=combine(valid, tokens);
+                    add_token(validCMDs,valid);
+                    free(valid);
+                }
             }
         }
         free(input);                                                            //given cleanup
@@ -305,7 +322,7 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
 }
 
 //includes path search, executing external commands, and IO redirection
-void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist *validCMDs){
+int pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     char *pipePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
@@ -313,6 +330,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
     char *pathCommand = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     char *pathPipeCommand = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int found = -1;
+    int valid=0;
 
 
     tokenlist *newTokens = new_tokenlist();
@@ -396,6 +414,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
         
                     // if file exists
                     if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
+                        valid=1;
                         if (writeFile == 0 || readFile == 0){
                             if (writeFile == 0){
                                 close(1); //closes STDOUT
@@ -435,6 +454,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
                 strcat(pathCommand,"/");
                 strcat(pathCommand,tokens->items[0]);
                 if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
+                    valid=1;
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
@@ -468,6 +488,8 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
             }
             if (found != 0){
                 printf("command not found");
+                return 0;
+                
             }
         }
         else{
@@ -517,6 +539,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
     free(wholePath);
     free(pipePath);
     free(rmLocal);
+    return 1;
   
 }
 
