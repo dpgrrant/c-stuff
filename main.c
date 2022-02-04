@@ -110,16 +110,12 @@ return 0;
 void singlePiping(tokenlist *tokens,char *path){
     pid_t pid1;
     pid_t pid2;
-    pid_t pid3;
     tokenlist *newTokens1 = new_tokenlist();
     tokenlist *newTokens2 = new_tokenlist();
-    int isPiped = -1;
-    int timesPiped = 0;
     int p_fds[2];
     char *path1 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     char *path2 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int counter = 0;
-    char *temp;
     
     
     for (int j = 0; j < tokens->size; j++){
@@ -183,14 +179,11 @@ void doublePiping(tokenlist *tokens,char *path){
     tokenlist *newTokens1 = new_tokenlist();
     tokenlist *newTokens2 = new_tokenlist();
     tokenlist *newTokens3 = new_tokenlist();
-    int isPiped = -1;
-    int timesPiped = 0;
     int p_fds[2];
     char *path1 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     char *path2 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     char *path3 = malloc(strlen(getenv("PATH")+2 + strlen(tokens->items[0])));
     int counter = 0;
-    char *temp;
     
     
     for (int j = 0; j < tokens->size; j++){
@@ -278,16 +271,12 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
     int found = -1;
 
 
-    
-    char *fromFile;
     tokenlist *newTokens = new_tokenlist();
     int afterTok = -1;
     int writeFile = -1;
     int readFile = -1;
     char* fileName = "empty";
     char* inFileName = "empty";
-    int fd;
-    int fd2;
     int isPiped = 0;
 
 
@@ -369,12 +358,12 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                         if (writeFile == 0 || readFile == 0){
                             if (writeFile == 0){
                                 close(1); //closes STDOUT
-                                fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
+                                open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
                                 dup(3);
                                 close(3);
                                 if (readFile == 0){
                                     close(0);
-                                    fd2 = open(copyFile2,O_RDONLY,0666);
+                                    open(copyFile2,O_RDONLY,0666);
                                     dup(3);
                                     close(3);
                                 }
@@ -383,7 +372,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                             }
                             if (readFile == 0){
                                 close(0);
-                                fd2 = open(copyFile2,O_RDONLY,0666);
+                                open(copyFile2,O_RDONLY,0666);
                                 dup(3);
                                 close(3);
                                 execv(pathCommand,tokens->items);
@@ -407,12 +396,12 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
-                            fd = open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
+                            open(copyFile,O_RDWR | O_CREAT | O_TRUNC,0666);
                             dup(3);
                             close(3);
                             if (readFile == 0){
                                 close(0);
-                                fd2 = open(copyFile2,O_RDONLY,0666);
+                                open(copyFile2,O_RDONLY,0666);
                                 dup(3);
                                 close(3);
                             }
@@ -421,7 +410,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                         }
                         if (readFile == 0){
                             close(0); //closes STDIN
-                            fd2 = open(copyFile2,O_RDONLY,0666);
+                            open(copyFile2,O_RDONLY,0666);
                             dup(3);
                             close(3);
                             execv(pathCommand,tokens->items);
