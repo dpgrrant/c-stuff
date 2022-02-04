@@ -69,6 +69,9 @@ int main(){
             }
             
         }
+        else if(strcmp(tokens->items[0],"jobs")==0){         //called "jobs", list all jobs
+            listJobs(&jobs);
+        }
         else if(strcmp(tokens->items[0],"cd")==0){                  //cd
             if(tokens->size==1){                                //if cd is only arg
                 chdir(getenv("HOME"));
@@ -612,7 +615,7 @@ void removeJob(jobList *jobs, int id){
 void listJobs(jobList *jobs){
     for(int i = 0; i < MAXBGPROC; i++){
         if(jobs->jobs[i].active == 1){
-            printf("[%d][%d][%s]\n", i, jobs->jobs[i].pid, jobs->jobs[i].cmd);
+            printf("[%d]+ [%d] [%s]\n", i, jobs->jobs[i].pid, jobs->jobs[i].cmd);
         }
     }
 }
