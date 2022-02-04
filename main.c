@@ -35,7 +35,7 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
-void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs);
+void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist *validCMDs);
 void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
 void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
 
@@ -43,6 +43,7 @@ void addJob(jobList *jobs, tokenlist *tokens, pid_t pid);
 void removeJob(jobList *jobs, int id);
 void listJobs(jobList *jobs);
 void checkJobs(jobList *jobs);
+char *combine(char * dest, tokenlist *tokens);
 
 int main(){
     jobList jobs;
@@ -50,6 +51,8 @@ int main(){
     for(int i = 0; i < MAXBGPROC; i++){
         jobs.jobs[i].active = 0;
     }
+    char *valid;
+    tokenlist *validCMDs=new_tokenlist();
 
     while (1) {
         printf("\n%s@%s : %s >",getenv("USER"),getenv("MACHINE"),getenv("PWD"));                //prints prompt
@@ -60,20 +63,26 @@ int main(){
         if(tokens->size==0){
             continue;
         }
-        for (int i = 0; i < tokens->size; i++) {                                //printing tokens for debugging
-            printf("token %d: (%s)\n", i, tokens->items[i]);
-        }
         if(strcmp(tokens->items[0],"echo")==0){         //if echo is input print out second arguement
             for(int i = 1; i < tokens->size; i++){
                 printf("%s ",tokens->items[i]);
             }
+            valid=(char *)malloc(sizeof(char));
+            valid=combine(valid, tokens);
+            add_token(validCMDs,valid);
             
         }
-        else if(strcmp(tokens->items[0],"jobs")==0){         //called "jobs", list all jobs
+        else if(strcmp(tokens->items[0],"jobs")==0&&tokens->size==1){         //called "jobs", list all jobs
             listJobs(&jobs);
+                valid=(char *)malloc(sizeof(char));
+                valid=combine(valid, tokens);
+                add_token(validCMDs,valid);
         }
         else if(strcmp(tokens->items[0],"cd")==0){                  //cd
             if(tokens->size==1){                                //if cd is only arg
+                valid=(char *)malloc(sizeof(char));
+                valid=combine(valid, tokens);
+                add_token(validCMDs,valid);
                 chdir(getenv("HOME"));
                 char *cwd = getcwd(NULL, 0);
                 setenv("PWD", cwd, 1);        // 1 means overwrite
@@ -90,17 +99,22 @@ int main(){
             char *cwd = getcwd(NULL, 0);                            //change PWD
             setenv("PWD", cwd, 1);  // 1 means overwrite
             free(cwd);                   // IMPORTANT!
-        }  
+        }else if(strcmp(tokens->items[0],"exit")==0){
+
+        }
+        
         else{
             if(strcmp(tokens->items[tokens->size-1], "&")==0){
                 free(tokens->items[tokens->size-1]);    // Remove the '&' token
                 tokens->size--;
-
-                pathSearch(tokens, 1, &jobs);      // Run as background process    
+                pathSearch(tokens, 1, &jobs,validCMDs);      // Run as background process    
             }
             else{
-                pathSearch(tokens, 0, &jobs);
+                pathSearch(tokens, 0, &jobs,validCMDs);
             }
+        }
+        for (int i = 0; i < validCMDs->size; i++) {                                //printing tokens for debugging
+            printf("validCMDs %d: (%s)\n", i, validCMDs->items[i]);
         }
         free(input);                                                            //given cleanup
         free_tokens(tokens);
@@ -281,7 +295,7 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
 }
 
 //includes path search, executing external commands, and IO redirection
-void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
+void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist *validCMDs){
     char *wholePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     char *pipePath = malloc(strlen(getenv("PATH")+2+strlen(tokens->items[0]))); 
     strcpy(wholePath,getenv("PATH"));
@@ -303,22 +317,24 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
     char *localCommand = tokens->items[0];
     char *rmLocal = malloc(strlen(localCommand)+1);
     int changed = -1;
-
-    
-
+    printf("1");
     // checks if command is a local command
     for (int i = 0; i < strlen(localCommand); i++){
+        
         if (localCommand[i] == '.'){
+            printf("1");
             strcpy(pathCommand,getenv("PWD"));
             strcpy(rmLocal,&localCommand[i+1]);
             changed = 0;
             
         }
         else if (localCommand[i] == '/'){
+            printf("1");
             strcpy(rmLocal,&localCommand[i+1]);
             changed = 0;
         }
     }
+    printf("2");
     // if there is a period or a slash changes command to proper command
     if (changed == 0){
         strcpy(tokens->items[0], rmLocal);
@@ -357,11 +373,13 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
     strcpy(copyFile,fileName);
     strcpy(copyFile2,inFileName);
 
-  
+ 
     if (isPiped == 0){
+        printf("3");
         tokens = newTokens;
         pid_t pid = fork();
         if (pid == 0){
+            printf("1");
             //in child
 
             // changed checks whether it is a local command
@@ -375,6 +393,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
         
                     // if file exists
                     if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
+                        printf("1");
                         if (writeFile == 0 || readFile == 0){
                             if (writeFile == 0){
                                 close(1); //closes STDOUT
@@ -387,6 +406,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                                     dup(3);
                                     close(3);
                                 }
+
                                 execv(pathCommand,tokens->items);
                                 found = 0;
                             }
@@ -410,9 +430,11 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
                 }
             }
             else {
+                printf("1");
                 strcat(pathCommand,"/");
                 strcat(pathCommand,tokens->items[0]);
                 if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
+                    printf("2");
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
@@ -449,6 +471,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
             }
         }
         else{
+            
             if(isBackgroundProc == 1){
                 // Is a background process, call addJob()
                 addJob(jobs, tokens, pid);
@@ -459,6 +482,7 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
         }
     }
     else{
+        printf("1");
         strcpy(pipePath,getenv("PATH"));
         char *otherPath = strtok(pipePath,":"); //splits the path by colon;
        // printf("%s\n", getenv("PATH"));
@@ -488,6 +512,8 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
             otherPath = strtok(NULL,":");
         }
     }
+    
+    
     free(copyFile);
     free(copyFile2);
     free(pathCommand);
@@ -622,4 +648,20 @@ void checkJobs(jobList *jobs){
             }
         }
     }
+}
+char *combine(char * dest, tokenlist *tokens){
+    char *target = dest;               // where to copy the next elements
+    int size=0;
+    *target='\0';
+
+
+    for(int i = 0; i <tokens->size; i++){
+        size=size+strlen(tokens->items[i]);
+    }
+    target = malloc(sizeof(char) * size);
+    for(int i = 0; i < tokens->size; i++){
+        strcat(target," ");
+        strcat(target ,tokens->items[i]);
+    }
+    return target;
 }
