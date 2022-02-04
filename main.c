@@ -108,9 +108,9 @@ int main(){
             }
             else{
                 printf("The following was the last three valid commands executed: \n");
-                printf("%s", validCMDs->items[validCMDs->size-1]);
-                printf("%s", validCMDs->items[validCMDs->size-2]);
-                printf("%s", validCMDs->items[validCMDs->size-3]);
+                printf("1: %s\n", validCMDs->items[validCMDs->size-1]);
+                printf("2: %s\n", validCMDs->items[validCMDs->size-2]);
+                printf("3: %s\n", validCMDs->items[validCMDs->size-3]);
 
             }
             break;
@@ -178,9 +178,7 @@ void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             execv(path1,newTokens1->items);
             exit(1);
         }
-        else{
-            waitpid(pid1,NULL,0);
-        }
+     
         pid2 = fork();
         if(pid2 == 0){
             close(4); //closes unused end of pipe
@@ -190,17 +188,17 @@ void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             execv(path2,newTokens2->items);
             exit(1);
         }
-        else{
-            if(isBackgroundProc == 1){
-                addJob(jobs, tokens, pid2); // Is a background process, call addJob()
-            }
-            else{
-                //waitpid(pid2,NULL,0);
-            }
-        }
+    
         
         close(3);
-        close(4);        
+        close(4);  
+         if(isBackgroundProc == 1){
+            addJob(jobs, tokens, pid2); // Is a background process, call addJob()
+         }
+        else{
+            waitpid(pid1,NULL,0);
+            waitpid(pid2,NULL,0);
+        }      
     
     
     free(path1);
@@ -225,9 +223,6 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
     
     
     for (int j = 0; j < tokens->size; j++){
-            //newTokens1 = new_tokenlist();            
-            //newTokens2 = new_tokenlist();
-            //newTokens3 = new_tokenlist();
             if (counter == 0 && strcmp(tokens->items[j],"|") != 0){
                 add_token(newTokens1,tokens->items[j]);
             }
@@ -263,10 +258,7 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             execv(path1,newTokens1->items);
             exit(1);
         }
-        else{
-            waitpid(pid1,NULL,0);
-        }
-
+      
         pid2 = fork();
         if (pid2 == 0){
             close(1);
@@ -289,17 +281,17 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             execv(path3,newTokens3->items);
             exit(1);
         }
-        else{
-            if(isBackgroundProc == 1){
-                addJob(jobs, tokens, pid3); // Is a background process, call addJob()
-            }
-            else{
-                waitpid(pid3,NULL,0);
-            }
-        }
+    
 
         close(3);
-        close(4);        
+        close(4);  
+        if(isBackgroundProc == 1){
+            addJob(jobs, tokens, pid3); // Is a background process, call addJob()
+        }
+        else{
+            waitpid(pid1,NULL,0);
+            waitpid(pid3,NULL,0);
+         }      
     
     
     free(path1);
@@ -330,29 +322,24 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
     char *localCommand = tokens->items[0];
     char *rmLocal = malloc(strlen(localCommand)+1);
     int changed = -1;
-    printf("1");
     // checks if command is a local command
     for (int i = 0; i < strlen(localCommand); i++){
         
         if (localCommand[i] == '.'){
-            printf("1");
             strcpy(pathCommand,getenv("PWD"));
             strcpy(rmLocal,&localCommand[i+1]);
             changed = 0;
             
         }
         else if (localCommand[i] == '/'){
-            printf("1");
             strcpy(rmLocal,&localCommand[i+1]);
             changed = 0;
         }
     }
-    printf("2");
     // if there is a period or a slash changes command to proper command
     if (changed == 0){
         strcpy(tokens->items[0], rmLocal);
     }
-    //free(rmLocal);
 
 
     // loops through all the tokens checking whether there is a <, >, or |
@@ -388,11 +375,9 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
 
  
     if (isPiped == 0){
-        printf("3");
         tokens = newTokens;
         pid_t pid = fork();
         if (pid == 0){
-            printf("1");
             //in child
 
             // changed checks whether it is a local command
@@ -406,7 +391,6 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
         
                     // if file exists
                     if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
-                        printf("1");
                         if (writeFile == 0 || readFile == 0){
                             if (writeFile == 0){
                                 close(1); //closes STDOUT
@@ -443,11 +427,9 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
                 }
             }
             else {
-                printf("1");
                 strcat(pathCommand,"/");
                 strcat(pathCommand,tokens->items[0]);
                 if( access(pathCommand, R_OK) == 0 || access(pathCommand, X_OK)==0){
-                    printf("2");
                     if (writeFile == 0 || readFile == 0){
                         if (writeFile == 0){
                             close(1); //closes STDOUT
@@ -495,18 +477,14 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs,tokenlist
         }
     }
     else{
-        printf("1");
         strcpy(pipePath,getenv("PATH"));
         char *otherPath = strtok(pipePath,":"); //splits the path by colon;
-       // printf("%s\n", getenv("PATH"));
         while(otherPath != NULL){
-           // printf("%s\n", otherPath);
             strcpy(pathPipeCommand,otherPath);
             // adds a / and then the command
             strcat(pathPipeCommand,"/");
             strcat(pathPipeCommand,tokens->items[0]);
 
-          //  printf("%s\n", pathPipeCommand);
             // if file exists
             if( access(pathPipeCommand, R_OK) == 0 || access(pathPipeCommand, X_OK) == 0){
                 if (isPiped == 1){
