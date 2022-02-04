@@ -36,8 +36,8 @@ tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs);
-void doublePiping(tokenlist *tokens,char *path);
-void singlePiping(tokenlist *tokens,char *path);
+void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
+void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs);
 
 void addJob(jobList *jobs, tokenlist *tokens, pid_t pid);
 void removeJob(jobList *jobs, int id);
@@ -107,7 +107,7 @@ int main(){
 return 0;
 }
 
-void singlePiping(tokenlist *tokens,char *path){
+void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs){
     pid_t pid1;
     pid_t pid2;
     pid_t pid3;
@@ -152,6 +152,14 @@ void singlePiping(tokenlist *tokens,char *path){
             execv(path1,newTokens1->items);
             exit(1);
         }
+        else{
+            if(isBackgroundProc == 1){
+                addJob(jobs, tokens, pid1); // Is a background process, call addJob()
+            }
+            else{
+                waitpid(pid1,NULL,0);
+            }
+        }
         pid2 = fork();
         if(pid2 == 0){
             close(4); //closes unused end of pipe
@@ -161,12 +169,17 @@ void singlePiping(tokenlist *tokens,char *path){
             execv(path2,newTokens2->items);
             exit(1);
         }
-        // TODO: handle bg processes for piping here.   
-            close(3);
-            close(4);
-            waitpid(pid1,NULL,0);
-            waitpid(pid2,NULL,0);
+        else{
+            if(isBackgroundProc == 1){
+                addJob(jobs, tokens, pid2); // Is a background process, call addJob()
+            }
+            else{
+                waitpid(pid2,NULL,0);
+            }
+        }
         
+        close(3);
+        close(4);        
     
     
     free(path1);
@@ -175,7 +188,7 @@ void singlePiping(tokenlist *tokens,char *path){
     free_tokens(newTokens2);
 }
 
-void doublePiping(tokenlist *tokens,char *path){
+void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *jobs){
     
     pid_t pid1;
     pid_t pid2;
@@ -232,6 +245,15 @@ void doublePiping(tokenlist *tokens,char *path){
             execv(path1,newTokens1->items);
             exit(1);
         }
+        else{
+            if(isBackgroundProc == 1){
+                addJob(jobs, tokens, pid1); // Is a background process, call addJob()
+            }
+            else{
+                waitpid(pid1,NULL,0);
+            }
+        }
+
         pid2 = fork();
         if (pid2 == 0){
             close(1);
@@ -244,6 +266,12 @@ void doublePiping(tokenlist *tokens,char *path){
             exit(1);
 
         }
+        else{
+            if(isBackgroundProc == 1){
+                addJob(jobs, tokens, pid2); // Is a background process, call addJob()
+            }
+        }
+
         pid3 = fork();
         if(pid3 == 0){
             close(4);
@@ -253,13 +281,17 @@ void doublePiping(tokenlist *tokens,char *path){
             execv(path3,newTokens3->items);
             exit(1);
         }
-           
+        else{
+            if(isBackgroundProc == 1){
+                addJob(jobs, tokens, pid3); // Is a background process, call addJob()
+            }
+            else{
+                waitpid(pid3,NULL,0);
+            }
+        }
+
         close(3);
-        close(4);
-        waitpid(pid1,NULL,0);
-        //waitpid(pid2,NULL,0);
-        waitpid(pid3,NULL,0);
-        
+        close(4);        
     
     
     free(path1);
@@ -464,11 +496,11 @@ void pathSearch(tokenlist *tokens, int isBackgroundProc, jobList *jobs){
             // if file exists
             if( access(pathPipeCommand, R_OK) == 0 || access(pathPipeCommand, X_OK) == 0){
                 if (isPiped == 1){
-                    singlePiping(tokens,otherPath);
+                    singlePiping(tokens,otherPath, isBackgroundProc, jobs);
                     break;
                 }
                 else if (isPiped == 2){
-                    doublePiping(tokens,otherPath);
+                    doublePiping(tokens,otherPath, isBackgroundProc, jobs);
                     break;
                 }
                 
@@ -584,7 +616,7 @@ void addJob(jobList *jobs, tokenlist *tokens, pid_t pid){
     jobs->jobs[newPos].pid = pid;
     jobs->jobs[newPos].active = 1;
 
-    printf("[%d][%d]", newPos, pid);
+    printf("[%d][%d]\n", newPos, pid);
 }
 
 void removeJob(jobList *jobs, int id){
