@@ -96,6 +96,9 @@ int main(){
             if(chdir(tokens->items[1])!=0){                             //try's chdir if therre is error print error           
                 perror("ERROR");
             }
+            valid=(char *)malloc(sizeof(char));
+            valid=combine(valid, tokens);
+                add_token(validCMDs,valid);
             char *cwd = getcwd(NULL, 0);                            //change PWD
             setenv("PWD", cwd, 1);  // 1 means overwrite
             free(cwd);                   // IMPORTANT!
