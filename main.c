@@ -153,12 +153,7 @@ void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             exit(1);
         }
         else{
-            if(isBackgroundProc == 1){
-                addJob(jobs, tokens, pid1); // Is a background process, call addJob()
-            }
-            else{
-                waitpid(pid1,NULL,0);
-            }
+            waitpid(pid1,NULL,0);
         }
         pid2 = fork();
         if(pid2 == 0){
@@ -174,7 +169,7 @@ void singlePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
                 addJob(jobs, tokens, pid2); // Is a background process, call addJob()
             }
             else{
-                waitpid(pid2,NULL,0);
+                //waitpid(pid2,NULL,0);
             }
         }
         
@@ -246,12 +241,7 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             exit(1);
         }
         else{
-            if(isBackgroundProc == 1){
-                addJob(jobs, tokens, pid1); // Is a background process, call addJob()
-            }
-            else{
-                waitpid(pid1,NULL,0);
-            }
+            waitpid(pid1,NULL,0);
         }
 
         pid2 = fork();
@@ -265,11 +255,6 @@ void doublePiping(tokenlist *tokens,char *path, int isBackgroundProc, jobList *j
             execv(path2,newTokens2->items);
             exit(1);
 
-        }
-        else{
-            if(isBackgroundProc == 1){
-                addJob(jobs, tokens, pid2); // Is a background process, call addJob()
-            }
         }
 
         pid3 = fork();
